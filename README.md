@@ -14,6 +14,8 @@ TODO:
 
 ## Usage
 
+First you have to install SuperCollider as described on the [Overtone](http://overtone.github.com/) site. Then:
+
     $ lein deps
     $ lein run
 

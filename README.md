@@ -1,6 +1,6 @@
 # francis-albert
 
-A very simple functional ear trainer built to get familiar with [Overtone](). Inspired by the much more advanced [FET]().
+A very simple functional ear trainer built to get familiar with [Overtone](http://overtone.github.com/). Inspired-by/copied-from the much more advanced [FET](http://www.miles.be/).
 
 TODO:
 

@@ -2,6 +2,8 @@
 
 A very simple functional ear trainer built to get familiar with [Overtone](http://overtone.github.com/). Inspired-by/copied-from the much more advanced [FET](http://www.miles.be/).
 
+<img src="https://github.com/downloads/daveray/francis-albert/francis-albert.png" alt="Screenshot">
+
 TODO:
 
 * Learn the ways of overtone

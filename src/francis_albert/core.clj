@@ -21,28 +21,52 @@
     (* vol src env)))
 
 ; Helper to play a chord. TODO: Is this hidden in overtone somewhere?
+(defn play-note [s key off]
+  (play s [(+ key 60 off)]))
+
 (defn play-chord [s key off type]
   (play s (map #(+ key 60 off %) (resolve-chord type))))
 
-(def notes [:1 :#1 :2 :#2 :3 :4 :#4 :5 :#5 :6 :#6 :7])
-(def note-indices (into {} (map-indexed #(vector %2 %1) notes)))
+(def notes [:i :i# :ii :ii# :iii :iv :iv# :v :v# :vi :vi# :vii])
+(def note-info 
+  { 
+    :i   {:index 0  :answer []}
+    :i#  {:index 1  :answer [:i]}
+    :ii  {:index 2  :answer [:i]}
+    :ii# {:index 3  :answer [:ii :i]}
+    :iii {:index 4  :answer [:ii :i]}
+    :iv  {:index 5  :answer [:iii :ii :i]}
+    :iv# {:index 6  :answer [:v :vi :vii :I]}
+    :v   {:index 7  :answer [:vi :vii :I]}
+    :v#  {:index 8  :answer [:vi :vii :I]}
+    :vi  {:index 9  :answer [:vii :I]}
+    :vi# {:index 10 :answer [:vii :I]}
+    :vii {:index 11 :answer [:I]}
+    :I   {:index 12}
+   })
 
 ; The game state
 (def state (atom
-  { :expected :1
+  { :expected :i
     :key 0
     :new-question? true
     :total-guesses 0
     :correct-guesses 0 }))
 
 ; Play a single example. Just a ii-V7-I cadence followed by the expected note
-(defn play-example [state]
-  (let [{:keys [key expected]} state
-        t (now)]
-    (at (+ t 0)    (play-chord beep key 2 :minor7))
-    (at (+ t 1200) (play-chord beep key 7 :dom7))
-    (at (+ t 2400) (play-chord beep key 0 :major))
-    (at (+ t 3800) (beep (+ key (note-indices expected) 60)))))
+(defn play-example [inst key expected]
+  (let [t (+ (now) 100)]
+    (at (+ t 0)  (play-chord inst key 2 :minor7))
+    (at (+ t 1200) (play-chord inst key 7 :dom7))
+    (at (+ t 2400) (play-chord inst key 0 :major))
+    (at (+ t 3800) (inst (+ key (get-in note-info [expected :index]) 60)))))
+
+(defn play-answer [inst key expected]
+  (let [t            (+ (now) 100)
+        notes        (cons expected (get-in note-info [expected :answer]))
+        note-indexes (map #(get-in note-info [% :index]) notes)]
+    (doseq [[i n] (map-indexed vector note-indexes)]
+      (at (+ t (* i 500)) (play-note inst key n)))))
 
 ; Pick a random note
 (defn choose-note [] (notes (rand-int (count notes))))
@@ -74,13 +98,18 @@
                          :columns 6
                          :items (map #(button :id % :class :guess :text (name %)) notes))
                :south (grid-panel
-                        :columns 3
+                        :columns 2
                         :items [(label :id :score :text "Current Score:")
-                                (label :id :indicator 
-                                       :halign :center
-                                       :text ""
-                                       :opaque? true)
-                                (button :id :replay :text "Listen Again")]))))
+                                (paintable label 
+                                  :id :indicator 
+                                  :halign :center
+                                  :text ""
+                                  :paint { :before (fn [c g] 
+                                                    (.setOpaque c false)
+                                                    (.setColor g (.getBackground c))
+                                                    (.fillRoundRect g 0 0 (width c) (height c) 20 20))})
+                                (button :id :replay :text "Listen Again")
+                                (button :id :answer :text "Listen To Answer")]))))
 
 ; set up listeners and stuff
 (defn add-behaviors [root]
@@ -88,15 +117,21 @@
     (select root [:.guess])
     :action
     (fn [e]
-      (let [{:keys [new-question?] :as next-state} (swap! state make-guess (id-of e))]
+      (let [{:keys [new-question? key expected]} (swap! state make-guess (id-of e))]
         (when new-question?
-          (play-example next-state)))))
+          (play-example beep key expected)))))
 
   (listen 
     (select root [:#replay])
     :action
     (fn [e]
-      (play-example @state)))
+      (play-example beep (:key @state) (:expected @state))))
+
+  (listen 
+    (select root [:#answer])
+    :action
+    (fn [e]
+      (play-answer beep (:key @state) (:expected @state))))
 
   (b/bind
     state
@@ -125,7 +160,7 @@
     (-> (make-ui on-close)
       add-behaviors
       show!)
-    (play-example @state)))
+    (play-example beep (:key @state) (:expected @state))))
 
 (defn -main [& args]
   (app :exit))

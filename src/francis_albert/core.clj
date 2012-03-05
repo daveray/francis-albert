@@ -9,9 +9,13 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns francis-albert.core
-  (:use [overtone.live :exclude [select timer]]
+  (:use [overtone.live :exclude [config select timer]]
         [seesaw.core])
-  (:require [seesaw.bind :as b]))
+  (:require [seesaw.bind :as b]
+            [seesaw.dev :as dev]))
+
+; For sanity
+(dev/debug!)
 
 ; An instrument to play our notes. 60 is middle C.
 (definst beep [note 60 vol 0.5]
@@ -19,6 +23,10 @@
         src (sin-osc freq)
         env (env-gen (perc 0.3 2) :action FREE)]
     (* vol src env)))
+
+(defn play [inst notes]
+  (doseq [n notes]
+    (inst n)))
 
 ; Helper to play a chord. TODO: Is this hidden in overtone somewhere?
 (defn play-note [s key off]
@@ -165,5 +173,5 @@
 (defn -main [& args]
   (app :exit))
 
-(app :dispose)
+;(app :dispose)
 

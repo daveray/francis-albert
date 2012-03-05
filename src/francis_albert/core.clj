@@ -2,7 +2,7 @@
 
 ;   The use and distribution terms for this software are covered by the
 ;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
-;   which can be found in the file epl-v10.html at the root of this 
+;   which can be found in the file epl-v10.html at the root of this
 ;   distribution.
 ;   By using this software in any fashion, you are agreeing to be bound by
 ;   the terms of this license.
@@ -13,7 +13,7 @@
         [seesaw.core])
   (:require [seesaw.bind :as b]))
 
-; An instrument to play our notes. 60 is middle C. 
+; An instrument to play our notes. 60 is middle C.
 (definst beep [note 60 vol 0.5]
   (let [freq (midicps note)
         src (sin-osc freq)
@@ -28,8 +28,8 @@
   (play s (map #(+ key 60 off %) (resolve-chord type))))
 
 (def notes [:i :i# :ii :ii# :iii :iv :iv# :v :v# :vi :vi# :vii])
-(def note-info 
-  { 
+(def note-info
+  {
     :i   {:index 0  :answer []}
     :i#  {:index 1  :answer [:i]}
     :ii  {:index 2  :answer [:i]}
@@ -94,17 +94,17 @@
     :content (border-panel
                :border 5 :hgap 5 :vgap 5
                :north "Listen to the cadence and the note that follows it. Then guess the interval of the note. Good luck!"
-               :center (grid-panel 
+               :center (grid-panel
                          :columns 6
                          :items (map #(button :id % :class :guess :text (name %)) notes))
                :south (grid-panel
                         :columns 2
                         :items [(label :id :score :text "Current Score:")
-                                (paintable label 
-                                  :id :indicator 
+                                (paintable label
+                                  :id :indicator
                                   :halign :center
                                   :text ""
-                                  :paint { :before (fn [c g] 
+                                  :paint { :before (fn [c g]
                                                     (.setOpaque c false)
                                                     (.setColor g (.getBackground c))
                                                     (.fillRoundRect g 0 0 (width c) (height c) 20 20))})
@@ -113,7 +113,7 @@
 
 ; set up listeners and stuff
 (defn add-behaviors [root]
-  (listen 
+  (listen
     (select root [:.guess])
     :action
     (fn [e]
@@ -121,13 +121,13 @@
         (when new-question?
           (play-example beep key expected)))))
 
-  (listen 
+  (listen
     (select root [:#replay])
     :action
     (fn [e]
       (play-example beep (:key @state) (:expected @state))))
 
-  (listen 
+  (listen
     (select root [:#answer])
     :action
     (fn [e]
@@ -136,10 +136,10 @@
   (b/bind
     state
     (b/tee
-      (b/bind 
+      (b/bind
         (b/transform
-          (fn [s] (format "Current score: %d of %d correct" 
-                          (:correct-guesses s) 
+          (fn [s] (format "Current score: %d of %d correct"
+                          (:correct-guesses s)
                           (:total-guesses s))))
         (b/property (select root [:#score]) :text))
 
@@ -156,7 +156,7 @@
   root)
 
 (defn app [on-close]
-  (invoke-later 
+  (invoke-later
     (-> (make-ui on-close)
       add-behaviors
       show!)
@@ -165,5 +165,5 @@
 (defn -main [& args]
   (app :exit))
 
-;(app :dispose)
+(app :dispose)
 

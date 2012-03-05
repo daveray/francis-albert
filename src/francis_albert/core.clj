@@ -12,7 +12,8 @@
   (:use [overtone.live :exclude [config select timer]]
         [seesaw.core])
   (:require [seesaw.bind :as b]
-            [seesaw.dev :as dev]))
+            [seesaw.dev :as dev]
+            [overtone.music.pitch :as pitch]))
 
 ; For sanity
 (dev/debug!)
@@ -53,45 +54,94 @@
     :I   {:index 12}
    })
 
+;(:m7-9 :m+5 :dim7 :diminished :m6*9 :m7-5 :a :6 :7+5 :11+ :M7 :7 :9+5 :5 :minor :dim :dom7 :9sus4 :1 :m9+5 :sus2 :m9 :m7 :+5 :m7+5-9 :m :m7+5 :i :i7 :sus4 :m6 :7sus4 :9 :major7 :major :7-5 :6*9 :7sus2 :maj11 :7+5-9 :m11 :M :11 :7-9 :maj9 :minor7 :7-10 :13 :m13 :augmented :diminished7 :m11+)
+
+(def chord-qualities [:major :minor :dim :augmented])
+
 ; The game state
 (def state (atom
-  { :expected :i
+  { :mode :intervals
+    :expected :i
+    :inst beep
     :key 0
     :new-question? true
     :total-guesses 0
     :correct-guesses 0 }))
 
+(defmulti play-example :mode)
+(defmulti play-answer :mode)
+(defmulti choose-next-question identity)
+
+;; Functional Interval Mode
 ; Play a single example. Just a ii-V7-I cadence followed by the expected note
-(defn play-example [inst key expected]
+(defmethod play-example :intervals [{:keys [inst key expected]}]
   (let [t (+ (now) 100)]
     (at (+ t 0)  (play-chord inst key 2 :minor7))
     (at (+ t 1200) (play-chord inst key 7 :dom7))
     (at (+ t 2400) (play-chord inst key 0 :major))
     (at (+ t 3800) (inst (+ key (get-in note-info [expected :index]) 60)))))
 
-(defn play-answer [inst key expected]
+(defmethod play-answer :intervals [{:keys [inst key expected]}]
   (let [t            (+ (now) 100)
         notes        (cons expected (get-in note-info [expected :answer]))
         note-indexes (map #(get-in note-info [% :index]) notes)]
     (doseq [[i n] (map-indexed vector note-indexes)]
       (at (+ t (* i 500)) (play-note inst key n)))))
 
-; Pick a random note
-(defn choose-note [] (notes (rand-int (count notes))))
+(defmethod choose-next-question :intervals [_]
+  (rand-nth notes))
 
-; State transition function given state and guessed note
+;; Chord quality mode
+
+(defmethod play-example :chord-qualities [{:keys [inst key expected]}]
+  (at (+ (now) 100)
+      (play-chord inst key 0 expected)))
+
+(defmethod play-answer :chord-qualities [_])
+
+(defmethod choose-next-question :chord-qualities [_]
+  (rand-nth chord-qualities))
+
+;; General State Transitions
+
+(defn switch-mode [state new-mode]
+  (println "switch-mode " new-mode)
+  (assoc state :mode new-mode
+               :expected (choose-next-question new-mode)
+               :new-question? true))
+
 (defn make-guess [state guess]
   (if (= guess (:expected state))
     (-> state
       (update-in [:correct-guesses] inc)
       (update-in [:total-guesses] inc)
-      (assoc :expected (choose-note)
+      (assoc :expected (choose-next-question (:mode state))
              :key (rand-int 12)
              :new-question? true))
     (-> state
       (update-in [:total-guesses] inc)
       (assoc :new-question? false))))
 
+
+(defn make-interval-panel
+  []
+  (border-panel
+    :id :intervals
+    :border 5 :hgap 5 :vgap 5
+    :north "Listen to the cadence and the note that follows it. Then guess the interval of the note. Good luck!"
+    :center (grid-panel
+              :columns 6
+              :items (map #(button :id % :class :guess :text (name %)) notes))))
+
+(defn make-chord-quality-panel
+  []
+  (border-panel
+    :id :chord-qualities
+    :border 5 :hgap 5 :vgap 5
+    :north "Listen to the chord and identify its quality"
+    :center (grid-panel
+              :columns 2
+              :items (map #(button :id % :class :guess :text (name %)) chord-qualities))))
 
 ; Build up the structure of the UI
 (defn make-ui [on-close]
@@ -101,14 +151,14 @@
     :size [640 :by 480]
     :content (border-panel
                :border 5 :hgap 5 :vgap 5
-               :north "Listen to the cadence and the note that follows it. Then guess the interval of the note. Good luck!"
-               :center (grid-panel
-                         :columns 6
-                         :items (map #(button :id % :class :guess :text (name %)) notes))
+               :center (tabbed-panel
+                         :id   :tabs
+                         :tabs [{:title "Functional Intervals" :content (make-interval-panel)}
+                                {:title "Chord Qualities" :content (make-chord-quality-panel)}])
                :south (grid-panel
                         :columns 2
                         :items [(label :id :score :text "Current Score:")
-                                (paintable label
+                                (label
                                   :id :indicator
                                   :halign :center
                                   :text ""
@@ -121,25 +171,35 @@
 
 ; set up listeners and stuff
 (defn add-behaviors [root]
+
+  (listen
+    (select root [:#tabs])
+    :selection
+    (fn [e]
+      (println (id-of (:content (selection e))))
+      (swap! state switch-mode (-> (selection e) :content id-of))
+      (stop)
+      (play-example @state)))
+
   (listen
     (select root [:.guess])
     :action
     (fn [e]
-      (let [{:keys [new-question? key expected]} (swap! state make-guess (id-of e))]
+      (let [{:keys [new-question?]} (swap! state make-guess (id-of e))]
         (when new-question?
-          (play-example beep key expected)))))
+          (play-example @state)))))
 
   (listen
     (select root [:#replay])
     :action
     (fn [e]
-      (play-example beep (:key @state) (:expected @state))))
+      (play-example @state)))
 
   (listen
     (select root [:#answer])
     :action
     (fn [e]
-      (play-answer beep (:key @state) (:expected @state))))
+      (play-answer @state)))
 
   (b/bind
     state
@@ -168,7 +228,7 @@
     (-> (make-ui on-close)
       add-behaviors
       show!)
-    (play-example beep (:key @state) (:expected @state))))
+    (play-example @state)))
 
 (defn -main [& args]
   (app :exit))

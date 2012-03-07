@@ -24,7 +24,9 @@ First you have to install SuperCollider as described on the [Overtone](http://ov
     $ lein deps
     $ lein run
 
-You'll hear a three-chord cadence and then a note. Guess the interval of the note using the buttons provided. Then you'll hear another cadence and another note. Forever.
+In the "Functional Intervals" tab you'll hear a three-chord cadence and then a note. Guess the interval of the note in the key established by the cadence using the buttons provided. Then you'll hear another cadence and another note. Forever.
+
+In the "Chord Qualities" tab, Frank plays a single chord for you and you have to guess the quality of the chord, major, minor, etc. Make a guess, then you'll hear another chord, so on and so forth, forever. Fun!
 
 ## License
 

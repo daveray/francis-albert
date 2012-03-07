@@ -9,7 +9,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 (ns francis-albert.core
-  (:use [overtone.live :exclude [config select timer]]
+  (:use [overtone.core :exclude [config select timer]]
         [seesaw.core])
   (:require [seesaw.bind :as b]
             [seesaw.dev :as dev]
@@ -105,7 +105,6 @@
 ;; General State Transitions
 
 (defn switch-mode [state new-mode]
-  (println "switch-mode " new-mode)
   (assoc state :mode new-mode
                :expected (choose-next-question new-mode)
                :new-question? true))
@@ -176,7 +175,6 @@
     (select root [:#tabs])
     :selection
     (fn [e]
-      (println (id-of (:content (selection e))))
       (swap! state switch-mode (-> (selection e) :content id-of))
       (stop)
       (play-example @state)))
@@ -224,6 +222,7 @@
   root)
 
 (defn app [on-close]
+  (boot-server)
   (invoke-later
     (-> (make-ui on-close)
       add-behaviors
